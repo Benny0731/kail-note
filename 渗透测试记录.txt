@@ -1,0 +1,153 @@
+https://blog.csdn.net/kevinhanser/article/details/78010013		// CSDN笔记
+
+/* 命令 */
+<!-- NC ->
+# -c 		共享终端
+# -p		创建监听端口
+# -n		不进行域名解析
+# -l		监听列表
+# -z		端口扫描 
+# -u 		扫描udp端口
+# -q		传输完成后延时端口（单位：秒）
+# -v 		显示详细信息
+
+nc -nv 1.1.1.1 80		// 连接ip 1.1.1.1的80端口
+
+# 文本传输
+nc -lp 4444				// 服务器端nc监听4444端口
+nc -nv 1.1.1.1 4444
+
+# 传输文件
+nc -lp 333 > 1.mp4					// 客户端下载
+nc -nv 1.1.1.1 333 < 1.mp4 -q 1		// 服务端上传并在1S后退出
+
+# 传输目录
+tar -cvf - music/ | nc -lp 333 -q 1	// 服务端上传目录并在1S后推出
+nc -nv 1.1.1.1 333 | tar -xvf -		// 客户端下载
+
+# 加密传输
+nc -lp 333 | mcrypt --flush -Fbqd -a rijndael-256 -m ecb > 1.mp4				// 服务端下载后解密
+mcrypt --flush -Fbq -a rijndael-256 -m ecb < a.mp4 | nc -nv 1.1.1.1 333 -q 1	// 客户端加密后传输
+
+# 流媒体服务
+cat 1.mp4 | nc -lp 333									// 服务端传输视频文件
+nc -nv 1.1.1.1 333 | mplayer -vo x11 -cache 3000 -		// 客户端流媒体播放
+
+# 端口扫描
+nc -nvz 1.1.1.1 1-65535		// 扫描TCP协议1-65535端口
+nc -vnzu 1.1.1.1 1-1024		// 扫描UDP协议1-1042端口
+
+# 远程克隆硬盘
+nc -lp 333 | dd of=/dev/sda					// 服务短下载硬盘到/dev/sda
+dd if=/dev/sda | nc -nv 1.1.1.1 333 -q 1	// 客户端上传/dev/sda硬盘
+
+<!-- NCAT加密传输 ->
+# -c 		共享终端
+# -l		监听列表
+# -n		不进行域名解析
+# -v 		显示详细信息
+# --allow	允许被连接的ip
+# --ssl		使用ssl方式加密
+
+ncat ncat -c bash --allow 192.168.20.14 -vnl 333 --ssl
+ncat -nv 1.1.1.1 333 --ssl
+
+<!--  TCPDUMP抓包 ->
+# -i 指定网卡
+# -s 抓取包的长度 0表示全部
+# -w 表示保存到文件
+# -r 读取抓包文件
+# -X 以16进制显示
+# -n 不进行域名解析
+
+tcpdump -i eth0 -s 0 -w file.pcap					// 抓取eth0所有数据包并保存在file.pcap文件
+tcpdump -r file.cap									// 读取file.cap抓包文件
+tcpdump -n -r http.cap | awk '{print $3}'| sort –u	// 读取http.cap抓包文件不进行域名解析 显示第三列 不显示重复信息
+tcpdump -n src host 145.254.160.237 -r http.cap		// 读取http.cap文件显示源主机ip为145.254.160.237信息
+tcpdump -n dst host 145.254.160.237 -r http.cap		// 读取http.cap文件显示目标主机ip为145.254.160.237信息
+tcpdump -n port 53 -r http.cap						// 读取http.cap文件显示端口号为53的信息
+tcpdump -nX port 80 -r http.cap						// 读取http.cap文件以16进制方式显示端口号为80的信息
+
+<!-- nslookup ->
+# A			主机地址(域名 -> IP)
+# Cname		主机别名记录
+# NS		域名服务器记录
+# MX		邮件交换记录
+# PTR		反向解析（IP -> 域名）
+# set type(p)=a/c/ns/mx/ptr	设置域名解析类型
+
+nslookup 
+>set type=a/set p=a		// 将域名解析为ip
+>set type=c/set p=c		// 将域名解析为子域名
+>set type=ns/set p=ns	// 查询域名服务器名称
+>set type=mx/set p=mx	// 查询邮件服务器
+>set type=ptr/set p=ptr	// ip解析为域名
+>set type=any			// 查询所有信息
+>server 8.8.8.8			// 设置域名解析服务器为8.8.8.8
+
+nslookup -q=any 163.com 114.114.114.114		// 使用114.114.114.114域名解析服务器查询163.com域名的所有信息
+
+<!-- dig ->
+dig @8.8.8.8 www.sina.com mx	// 使用8.8.8.8域名服务器解析www.sina.com域名的 邮件记录
+dig www.sina.com any			// 使用默认域名解析服务器解析www.sina.com域名所有记录
+dig +noall +answer txt chaos VERSION.BIND @ns3.dnsv4.com	// bind版本信息
+dig +trace example.com			// 迭代（每次每次都会询问.域com等域名服务器也会询问本地域名服务器）
+
+<!-- DNS字典爆破 ->
+# -f 使用字典的等级（大小）
+dnsenum -f dnsbig.txt -dnsserver 8.8.8.8 sina.com -o sina.xml
+dnsrecon -d sina.com --lifetime 10 -t brt -D dnsbig.txt
+dnsrecon -t std -d sina.com
+whois sina.com		// 域名注册信息查询
+
+<!-- SHODAN ->
+# net:8.8.8.0/24			// 查8.8.8.0下所有子网
+# city:Beijing				// 查所在地为北京
+# country:US				// 查所在国家为美国
+# port:80,22				// 查80和22端口
+# os:linux					// 查操作系统为linux
+# hostname:www.baidu.com	// 查主机名为www.baidu.com
+https://www.shodan.io/
+
+<!-- theharvester ->
+# 电子邮件用户名和主机名/子域名信息收集工具
+# -d 指定域名
+# -l 指定输出搜索结果
+# -b 指定搜索引擎
+# theharvester -d microsoft.com -l 200 -b google	// 使用google搜索200个microsoft.com域名的邮箱
+
+<!-- metagoofil ->
+# 使用google搜索文件
+# -d 指定搜索的域名
+# -t 搜索的文件类型
+# -l 搜索的条数
+# -n 下载的条数
+# -o 将文件下载的目录
+# -f 输出文件
+metagoofil -d apple.com -t doc,pdf -l 200 -n 50 -o applefiles -f results.html	// 搜索200条apple.com相关的doc与pdf文档并下载到本地applefiles下50条 并生成results.html文件
+
+<!-- Maltego ->
+# 情报收集图形化工具
+
+<!-- CUPP 制作个人专属字典 ->
+git clone https://github.com/Mebus/cupp.git
+python cupp.py -i
+
+<!-- 图片信息 ->
+exif
+
+<!-- 文件信息 ->
+foca
+
+<!-- nmap ->
+nmap -p80 192.168.0.0/24	// 扫描192.168.0.0~255下所有主机80端口状态
+
+
+/* 下载连接 */
+https://downloads.metasploit.com/data/metasploitable/metasploitable-linux-2.0.0.zip	// metasploit
+https://www.turnkeylinux.org/														// 其他虚拟机系统
+
+/* 账号记录 */
+/* user:password */
+msfadmin:msfadmin	// metasploit
+admin:mono			// m0n0wall web
