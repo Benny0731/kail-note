@@ -142,6 +142,7 @@ foca
 <!-- nmap ->
 nmap -p80 192.168.0.0/24	// 扫描192.168.0.0~255下所有主机80端口状态
 
+
 /* 下载连接 */
 https://downloads.metasploit.com/data/metasploitable/metasploitable-linux-2.0.0.zip	// metasploit
 https://www.turnkeylinux.org/														// 其他虚拟机系统
